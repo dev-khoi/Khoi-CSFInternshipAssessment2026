@@ -134,6 +134,19 @@ test('POST /api/animals/:id/health-events creates an event', async () => {
   assert.equal(body.animal_id, id);
 });
 
+test('POST /api/animals/:id/health-events returns 400 for invalid date', async () => {
+  const { body: animals } = await get('/animals?page=0&limit=1');
+  const id = animals[0].id;
+
+  const { status, body } = await post(`/animals/${id}/health-events`, {
+    event_type: 'checkup',
+    date: '2025-13-40',
+  });
+
+  assert.equal(status, 400);
+  assert.equal(body.error, 'date must be a valid YYYY-MM-DD string');
+});
+
 test('PUT /api/animals/:id reassigns paddock and keeps counts consistent', async () => {
   const { body: animals } = await get('/animals?page=0&limit=10');
   const bella = animals.find(animal => animal.tag_number === 'TAG-001');
