@@ -1,6 +1,6 @@
 # FarmTracker
 
-A livestock record management application for tracking animals, paddock assignments, and health events.
+A livestock record management application for tracking animals, paddock assignments, health events, and weight history.
 
 ## Requirements
 
@@ -62,3 +62,5 @@ app/
 | DELETE | /api/animals/:id | Delete an animal |
 | GET | /api/animals/:id/health-events | List health events |
 | POST | /api/animals/:id/health-events | Log a health event |
+| GET | /api/animals/:id/weights | List weight records (newest first) |
+| POST | /api/animals/:id/weights | Log a weight measurement |
