@@ -262,3 +262,42 @@ test('POST /api/animals duplicate tag rolls back paddock count update', async ()
   assert.ok(after);
   assert.equal(after.animal_count, 0);
 });
+
+test('PUT /api/animals returns 404 when reassigned paddock_id does not exist', async () => {
+  const { body: animals } = await get('/animals?page=0&limit=10');
+  const animal = animals.find(item => item.tag_number === 'TAG-002');
+  assert.ok(animal);
+
+  const { status, body } = await put(`/animals/${animal.id}`, {
+    paddock_id: 999999,
+  });
+
+  assert.equal(status, 404);
+  assert.equal(body.error, 'Paddock not found');
+});
+
+test('PUT /api/animals allows same-paddock update even when paddock is full', async () => {
+  const createPaddock = await post('/paddocks', {
+    name: 'Same Paddock Full Test',
+    capacity: 1,
+  });
+  assert.equal(createPaddock.status, 201);
+
+  const fullPaddockId = createPaddock.body.id;
+
+  const created = await post('/animals', {
+    name: 'Same Paddock Occupant',
+    tag_number: 'TAG-SAME-001',
+    paddock_id: fullPaddockId,
+  });
+  assert.equal(created.status, 201);
+
+  const update = await put(`/animals/${created.body.id}`, {
+    name: 'Same Paddock Occupant Updated',
+    paddock_id: fullPaddockId,
+  });
+
+  assert.equal(update.status, 200);
+  assert.equal(update.body.paddock_id, fullPaddockId);
+  assert.equal(update.body.name, 'Same Paddock Occupant Updated');
+});
