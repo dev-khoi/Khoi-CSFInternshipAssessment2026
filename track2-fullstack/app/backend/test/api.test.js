@@ -71,6 +71,15 @@ async function post(path, body) {
   return { status: res.status, body: await res.json() };
 }
 
+async function put(path, body) {
+  const res = await fetch(baseUrl + path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 test('GET /api/paddocks returns an array', async () => {
   const { status, body } = await get('/paddocks');
   assert.equal(status, 200);
@@ -123,4 +132,45 @@ test('POST /api/animals/:id/health-events creates an event', async () => {
   assert.equal(status, 201);
   assert.equal(body.event_type, 'checkup');
   assert.equal(body.animal_id, id);
+});
+
+test('PUT /api/animals/:id reassigns paddock and keeps counts consistent', async () => {
+  const { body: animals } = await get('/animals?page=0&limit=10');
+  const bella = animals.find(animal => animal.tag_number === 'TAG-001');
+  assert.ok(bella);
+
+  const { body: paddocksBefore } = await get('/paddocks');
+  const northBefore = paddocksBefore.find(paddock => paddock.name === 'North Paddock');
+  const southBefore = paddocksBefore.find(paddock => paddock.name === 'South Paddock');
+  assert.ok(northBefore);
+  assert.ok(southBefore);
+
+  const { status, body } = await put(`/animals/${bella.id}`, { paddock_id: southBefore.id });
+  assert.equal(status, 200);
+  assert.equal(body.paddock_id, southBefore.id);
+
+  const { body: paddocksAfter } = await get('/paddocks');
+  const northAfter = paddocksAfter.find(paddock => paddock.id === northBefore.id);
+  const southAfter = paddocksAfter.find(paddock => paddock.id === southBefore.id);
+
+  assert.equal(northAfter.animal_count, northBefore.animal_count - 1);
+  assert.equal(southAfter.animal_count, southBefore.animal_count + 1);
+});
+
+test('PUT /api/animals/:id without paddock change keeps counts unchanged', async () => {
+  const { body: animals } = await get('/animals?page=0&limit=10');
+  const daisy = animals.find(animal => animal.tag_number === 'TAG-002');
+  assert.ok(daisy);
+
+  const { body: paddocksBefore } = await get('/paddocks');
+  const beforeCounts = new Map(paddocksBefore.map(paddock => [paddock.id, paddock.animal_count]));
+
+  const { status, body } = await put(`/animals/${daisy.id}`, { breed: 'Dorper Cross' });
+  assert.equal(status, 200);
+  assert.equal(body.paddock_id, daisy.paddock_id);
+
+  const { body: paddocksAfter } = await get('/paddocks');
+  paddocksAfter.forEach(paddock => {
+    assert.equal(paddock.animal_count, beforeCounts.get(paddock.id));
+  });
 });
