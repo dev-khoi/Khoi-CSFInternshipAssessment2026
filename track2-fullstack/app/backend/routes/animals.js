@@ -35,27 +35,53 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'name and tag_number are required' });
   }
 
-  if (paddock_id !== null && paddock_id !== undefined) {
-    const paddock = getPaddockById(paddock_id);
-    if (!paddock) {
-      return res.status(404).json({ error: 'Paddock not found' });
+  let createdAnimalId;
+
+  try {
+    db.exec('BEGIN');
+
+    if (paddock_id !== null && paddock_id !== undefined) {
+      const paddock = getPaddockById(paddock_id);
+      if (!paddock) {
+        db.exec('ROLLBACK');
+        return res.status(404).json({ error: 'Paddock not found' });
+      }
+
+      if (paddock.animal_count >= paddock.capacity) {
+        db.exec('ROLLBACK');
+        return res.status(422).json({ error: 'Paddock is at capacity' });
+      }
     }
 
-    if (paddock.animal_count >= paddock.capacity) {
-      return res.status(422).json({ error: 'Paddock is at capacity' });
+    const result = db.prepare(
+      'INSERT INTO animals (name, tag_number, breed, date_of_birth, paddock_id) VALUES (?, ?, ?, ?, ?)'
+    ).run(name, tag_number, breed ?? null, date_of_birth ?? null, paddock_id ?? null);
+    createdAnimalId = result.lastInsertRowid;
+
+    if (paddock_id !== null && paddock_id !== undefined) {
+      db.prepare(
+        'UPDATE paddocks SET animal_count = animal_count + 1 WHERE id = ?'
+      ).run(paddock_id);
     }
 
-    db.prepare(
-      'UPDATE paddocks SET animal_count = animal_count + 1 WHERE id = ?'
-    ).run(paddock_id);
+    db.exec('COMMIT');
+  } catch (error) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {}
+
+    if (
+      error.code === 'SQLITE_CONSTRAINT_UNIQUE'
+      || (typeof error.message === 'string' && error.message.includes('UNIQUE constraint failed: animals.tag_number'))
+    ) {
+      return res.status(409).json({ error: 'tag_number must be unique' });
+    }
+
+    throw error;
   }
 
-  const result = db.prepare(
-    'INSERT INTO animals (name, tag_number, breed, date_of_birth, paddock_id) VALUES (?, ?, ?, ?, ?)'
-  ).run(name, tag_number, breed ?? null, date_of_birth ?? null, paddock_id ?? null);
-
-  const animal = db.prepare('SELECT * FROM animals WHERE id = ?').get(result.lastInsertRowid);
-  res.json(animal);
+  const animal = db.prepare('SELECT * FROM animals WHERE id = ?').get(createdAnimalId);
+  res.status(201).json(animal);
 });
 
 router.get('/:id', (req, res) => {

@@ -200,7 +200,7 @@ test('POST/PUT /api/animals rejects assignment into full paddock with 422', asyn
     tag_number: 'TAG-FULL-001',
     paddock_id: fullPaddockId,
   });
-  assert.equal(fillPaddock.status, 200);
+  assert.equal(fillPaddock.status, 201);
 
   const createIntoFull = await post('/animals', {
     name: 'Blocked Create',
@@ -214,11 +214,51 @@ test('POST/PUT /api/animals rejects assignment into full paddock with 422', asyn
     name: 'Movable Animal',
     tag_number: 'TAG-MOVE-001',
   });
-  assert.equal(movable.status, 200);
+  assert.equal(movable.status, 201);
 
   const moveIntoFull = await put(`/animals/${movable.body.id}`, {
     paddock_id: fullPaddockId,
   });
   assert.equal(moveIntoFull.status, 422);
   assert.equal(moveIntoFull.body.error, 'Paddock is at capacity');
+});
+
+test('POST /api/animals returns 201 on successful create', async () => {
+  const { status, body } = await post('/animals', {
+    name: 'Created Animal',
+    tag_number: 'TAG-201-CREATE',
+  });
+
+  assert.equal(status, 201);
+  assert.equal(body.name, 'Created Animal');
+  assert.equal(body.tag_number, 'TAG-201-CREATE');
+});
+
+test('POST /api/animals duplicate tag rolls back paddock count update', async () => {
+  const createPaddock = await post('/paddocks', {
+    name: 'Rollback Test Paddock',
+    capacity: 5,
+  });
+  assert.equal(createPaddock.status, 201);
+
+  const paddockId = createPaddock.body.id;
+
+  const { body: paddocksBefore } = await get('/paddocks');
+  const before = paddocksBefore.find(paddock => paddock.id === paddockId);
+  assert.ok(before);
+  assert.equal(before.animal_count, 0);
+
+  const duplicateInsert = await post('/animals', {
+    name: 'Duplicate Tag Animal',
+    tag_number: 'TAG-001',
+    paddock_id: paddockId,
+  });
+
+  assert.equal(duplicateInsert.status, 409);
+  assert.equal(duplicateInsert.body.error, 'tag_number must be unique');
+
+  const { body: paddocksAfter } = await get('/paddocks');
+  const after = paddocksAfter.find(paddock => paddock.id === paddockId);
+  assert.ok(after);
+  assert.equal(after.animal_count, 0);
 });
