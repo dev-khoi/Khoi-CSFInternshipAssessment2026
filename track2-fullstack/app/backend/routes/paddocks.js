@@ -1,28 +1,38 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db');
+const paddockService = require('../services/paddockService');
+const { mapDomainErrorToHttp } = require('../lib/httpErrorMapper');
+
+function handleRouteError(error, res, next) {
+  const mapped = mapDomainErrorToHttp(error);
+  if (mapped) {
+    return res.status(mapped.status).json(mapped.body);
+  }
+
+  return next(error);
+}
 
 router.get('/', (req, res) => {
-  const paddocks = db.prepare('SELECT * FROM paddocks').all();
+  const paddocks = paddockService.listPaddocks();
   res.json(paddocks);
 });
 
-router.post('/', (req, res) => {
-  const { name, capacity } = req.body;
-  if (!name || !capacity) {
-    return res.status(400).json({ error: 'name and capacity are required' });
+router.post('/', (req, res, next) => {
+  try {
+    const paddock = paddockService.createPaddock(req.body);
+    res.status(201).json(paddock);
+  } catch (error) {
+    return handleRouteError(error, res, next);
   }
-  const result = db.prepare(
-    'INSERT INTO paddocks (name, capacity) VALUES (?, ?)'
-  ).run(name, capacity);
-  const paddock = db.prepare('SELECT * FROM paddocks WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(paddock);
 });
 
-router.get('/:id', (req, res) => {
-  const paddock = db.prepare('SELECT * FROM paddocks WHERE id = ?').get(req.params.id);
-  if (!paddock) return res.status(404).json({ error: 'Paddock not found' });
-  res.json(paddock);
+router.get('/:id', (req, res, next) => {
+  try {
+    const paddock = paddockService.getPaddockById(req.params.id);
+    res.json(paddock);
+  } catch (error) {
+    return handleRouteError(error, res, next);
+  }
 });
 
 module.exports = router;
