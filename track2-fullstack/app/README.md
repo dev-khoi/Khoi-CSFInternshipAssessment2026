@@ -36,6 +36,9 @@ app/
 │   ├── routes/
 │   │   ├── animals.js     # Animal endpoints
 │   │   └── paddocks.js    # Paddock endpoints
+│   ├── services/           # Domain rules + transactions
+│   ├── repositories/       # SQL data access modules
+│   ├── lib/                # Shared validators/errors/mappers
 │   ├── test/
 │   │   └── api.test.js    # Integration tests
 │   ├── seed.js            # Seed script (run once after install)
@@ -64,3 +67,10 @@ app/
 | POST | /api/animals/:id/health-events | Log a health event |
 | GET | /api/animals/:id/weights | List weight records (newest first) |
 | POST | /api/animals/:id/weights | Log a weight measurement |
+
+## Backend architecture
+
+- `routes/` handles HTTP-level concerns only.
+- `services/` enforces business rules and transaction orchestration.
+- `repositories/` contains parameterized SQL only.
+- `lib/` provides shared validators, domain errors, and error mapping.
