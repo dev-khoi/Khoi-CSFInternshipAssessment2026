@@ -174,3 +174,51 @@ test('PUT /api/animals/:id without paddock change keeps counts unchanged', async
     assert.equal(paddock.animal_count, beforeCounts.get(paddock.id));
   });
 });
+
+test('POST /api/animals returns 404 when paddock_id does not exist', async () => {
+  const { status, body } = await post('/animals', {
+    name: 'Invalid Paddock Animal',
+    tag_number: 'TAG-404-PADDOCK',
+    paddock_id: 999999,
+  });
+
+  assert.equal(status, 404);
+  assert.equal(body.error, 'Paddock not found');
+});
+
+test('POST/PUT /api/animals rejects assignment into full paddock with 422', async () => {
+  const createPaddock = await post('/paddocks', {
+    name: 'Full Test Paddock',
+    capacity: 1,
+  });
+  assert.equal(createPaddock.status, 201);
+
+  const fullPaddockId = createPaddock.body.id;
+
+  const fillPaddock = await post('/animals', {
+    name: 'Occupant',
+    tag_number: 'TAG-FULL-001',
+    paddock_id: fullPaddockId,
+  });
+  assert.equal(fillPaddock.status, 200);
+
+  const createIntoFull = await post('/animals', {
+    name: 'Blocked Create',
+    tag_number: 'TAG-FULL-002',
+    paddock_id: fullPaddockId,
+  });
+  assert.equal(createIntoFull.status, 422);
+  assert.equal(createIntoFull.body.error, 'Paddock is at capacity');
+
+  const movable = await post('/animals', {
+    name: 'Movable Animal',
+    tag_number: 'TAG-MOVE-001',
+  });
+  assert.equal(movable.status, 200);
+
+  const moveIntoFull = await put(`/animals/${movable.body.id}`, {
+    paddock_id: fullPaddockId,
+  });
+  assert.equal(moveIntoFull.status, 422);
+  assert.equal(moveIntoFull.body.error, 'Paddock is at capacity');
+});

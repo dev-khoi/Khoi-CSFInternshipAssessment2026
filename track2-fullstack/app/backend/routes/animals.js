@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
 
+function getPaddockById(paddockId) {
+  return db.prepare('SELECT * FROM paddocks WHERE id = ?').get(paddockId);
+}
+
 router.get('/', (req, res) => {
   const page = parseInt(req.query.page) || 0;
   const limit = parseInt(req.query.limit) || 10;
@@ -31,7 +35,16 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'name and tag_number are required' });
   }
 
-  if (paddock_id) {
+  if (paddock_id !== null && paddock_id !== undefined) {
+    const paddock = getPaddockById(paddock_id);
+    if (!paddock) {
+      return res.status(404).json({ error: 'Paddock not found' });
+    }
+
+    if (paddock.animal_count >= paddock.capacity) {
+      return res.status(422).json({ error: 'Paddock is at capacity' });
+    }
+
     db.prepare(
       'UPDATE paddocks SET animal_count = animal_count + 1 WHERE id = ?'
     ).run(paddock_id);
@@ -64,6 +77,17 @@ router.put('/:id', (req, res) => {
   };
 
   if (updates.paddock_id !== animal.paddock_id) {
+    if (updates.paddock_id !== null && updates.paddock_id !== undefined) {
+      const paddock = getPaddockById(updates.paddock_id);
+      if (!paddock) {
+        return res.status(404).json({ error: 'Paddock not found' });
+      }
+
+      if (paddock.animal_count >= paddock.capacity) {
+        return res.status(422).json({ error: 'Paddock is at capacity' });
+      }
+    }
+
     if (animal.paddock_id) {
       db.prepare(
         'UPDATE paddocks SET animal_count = animal_count - 1 WHERE id = ?'
