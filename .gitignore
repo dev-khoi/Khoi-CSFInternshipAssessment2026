@@ -1,2 +1,77 @@
 _ignore/
+
+# Dependency directories
 node_modules/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets*.json
+
+# Logs and runtime artifacts
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+pids/
+*.pid
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python cache / virtualenv (CV track)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Local datasets and generated data
+data/
+datasets/
+raw_data/
+processed_data/
+cache/
+tmp/
+temp/
+
+# Model artifacts and heavy outputs
+checkpoints/
+models/
+weights/
+runs/
+artifacts/
+outputs/
+results/
+*.pt
+*.pth
+*.onnx
+*.h5
+*.ckpt
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Compressed archives
+*.zip
+*.tar
+*.gz
+*.7z
