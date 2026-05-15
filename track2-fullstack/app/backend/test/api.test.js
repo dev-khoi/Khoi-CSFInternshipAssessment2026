@@ -46,9 +46,11 @@ function seedTestData() {
 
   const bellaId = insertAnimal.run('Bella', 'TAG-001', 'Merino', '2021-03-14', northId).lastInsertRowid;
   insertAnimal.run('Daisy', 'TAG-002', 'Dorper', '2020-07-22', southId);
+  insertAnimal.run('Molly', 'TAG-003', 'Merino', '2022-01-05', northId);
 
   db.prepare('UPDATE paddocks SET animal_count = animal_count + 1 WHERE id = ?').run(northId);
   db.prepare('UPDATE paddocks SET animal_count = animal_count + 1 WHERE id = ?').run(southId);
+  db.prepare('UPDATE paddocks SET animal_count = animal_count + 1 WHERE id = ?').run(northId);
 
   db.prepare(
     'INSERT INTO health_events (animal_id, event_type, notes, date, vet_name) VALUES (?, ?, ?, ?, ?)'
@@ -81,6 +83,20 @@ test('GET /api/animals returns animals with latest_health_event field', async ()
   assert.ok(Array.isArray(body));
   assert.ok(body.length > 0);
   assert.ok('latest_health_event' in body[0]);
+});
+
+test('GET /api/animals uses page * limit offset for pagination', async () => {
+  const firstPage = await get('/animals?page=0&limit=2');
+  const secondPage = await get('/animals?page=1&limit=2');
+
+  assert.equal(firstPage.status, 200);
+  assert.equal(secondPage.status, 200);
+  assert.equal(firstPage.body.length, 2);
+  assert.equal(secondPage.body.length, 1);
+
+  const firstPageIds = new Set(firstPage.body.map(animal => animal.id));
+  const overlappingIds = secondPage.body.filter(animal => firstPageIds.has(animal.id));
+  assert.equal(overlappingIds.length, 0);
 });
 
 test('GET /api/animals/:id returns a single animal', async () => {
